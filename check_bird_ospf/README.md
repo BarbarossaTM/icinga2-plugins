@@ -22,4 +22,5 @@ optional arguments:
   --ignore_missing_file
                         Ignore a possible non-existent file given as
                         --interfaces_down_ok_file
+  --no_ptp_ip           Do not print router ID/IP on ptp interfaces
 ```
