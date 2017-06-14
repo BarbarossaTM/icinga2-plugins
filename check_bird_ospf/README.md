@@ -1,3 +1,4 @@
+```
 $ ./check_bird_ospf -h
 usage: check_bird_ospf [-h] [--proto {4,6}] [--protocol PROTOCOL]
                        [--interfaces_down_ok LIST]
@@ -21,3 +22,4 @@ optional arguments:
   --ignore_missing_file
                         Ignore a possible non-existent file given as
                         --interfaces_down_ok_file
+```

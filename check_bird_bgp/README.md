@@ -1,3 +1,4 @@
+```
 $ ./check_bird_bgp -h
 usage: check_bird_bgp [-h] [--proto {4,6}] --asn ASN [--ibgp] [--ibgp_w RANGE]
                       [--ibgp_c RANGE] [--ebgp] [--ebgp_w RANGE]
@@ -29,3 +30,4 @@ optional arguments:
   --ignore_missing_file
                         Ignore a possible non-existent file given as
                         --interfaces_down_ok_file
+```

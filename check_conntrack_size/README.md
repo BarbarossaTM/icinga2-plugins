@@ -1,3 +1,4 @@
+```
 $ ./check_conntrack_size -h
 usage: check_conntrack_size [-h] [--warn WARN] [--crit CRIT]
                             [--no-conntrack {ok,warn,crit,unkn}]
@@ -10,3 +11,4 @@ optional arguments:
   --crit CRIT, -c CRIT  Critical conntrack table usage (percent)
   --no-conntrack {ok,warn,crit,unkn}
                         Return code when no conntrack is loaded.
+```
