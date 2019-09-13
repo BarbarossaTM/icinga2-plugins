@@ -226,8 +226,18 @@ down_by_proto = {
 }
 
 for protoname, config in sorted (bgp_sessions.items ()):
-	# Skip iBGP/eBGP sessions when not asked to check them
 	session_args = config.get ('Session', [])
+
+	# Check if user gave us a remote ASN as local AS
+	if ('external' in session_args) and (config['Neighbor AS'] == args.asn):
+		print "ERROR: Session %s is eBGP but has our ASN! The given local ASN seems wrong!" % protoname
+		ret_code = 3
+
+	if ('internal' in session_args) and (config['Neighbor AS'] != args.asn):
+		print "ERROR: Session %s is iBGP but does not have our ASN! The given local ASN seems wrong!" % protoname
+		ret_code = 3
+
+	# Skip iBGP/eBGP sessions when not asked to check them
 	if (args.ibgp != True and (('internal' in session_args) or (config['Neighbor AS'] == args.asn))) or \
 	   (args.ebgp != True and (('external' in session_args) or (config['Neighbor AS'] != args.asn))):
 		continue
