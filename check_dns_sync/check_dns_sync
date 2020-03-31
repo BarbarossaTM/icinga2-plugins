@@ -8,6 +8,10 @@ import argparse
 from dns.resolver import Resolver, NoNameservers
 from ipaddress import ip_address
 import sys
+import time
+
+# Track start time
+time_start = time.time ()
 
 parser = argparse.ArgumentParser (description = 'Check DNS sync')
 parser.add_argument ('--reference-ns', required = True, help = 'IP address of reference NS')
@@ -110,6 +114,7 @@ replica_res.lifetime = args.timeout
 # Let#s go
 #
 
+codes = {}
 ret_code = OK
 errors = ""
 in_sync = []
@@ -117,13 +122,17 @@ in_sync = []
 for zone in args.zones:
 	check = check_zone (zone)
 
-	if check['state'] == OK:
+	# Keep track of states
+	state = check['state']
+	codes[state] = codes.get (state, 0) + 1
+
+	if state == OK:
 		in_sync.append (zone)
 		continue
 
 	errors += "Zone '%s': %s\n" % (zone, check['errors'])
 
-	if check['state'] > ret_code:
+	if state > ret_code:
 		ret_code = check['state']
 
 if errors:
@@ -132,7 +141,16 @@ if errors:
 if in_sync:
 	if args.verbose:
 		print ("Zones in sync: %s" % ", ".join (sorted (in_sync)))
-	else:
-		print ("%d zone(s) in sync" % len (in_sync))
+
+time_delta = int (1000 * (time.time () - time_start))
+
+print ("Checked %d zones in %d ms. %d OK, %d WARN, %d CRIT, %d UNKN" % (
+	len (args.zones),
+	time_delta,
+	codes.get (OK, 0),
+	codes.get (WARNING, 0),
+	codes.get (CRITICAL ,0),
+	codes.get (UNKNOWN, 0),
+))
 
 sys.exit (ret_code)
