@@ -49,6 +49,7 @@ parser.add_argument ('--disabled_ok', help = "Treat sessions disabled in bird as
 parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of sessions which are OK to be down. Provide a space separated list.")
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
+parser.add_argument ('--session', help = "Only check for session with given name.")
 
 
 args = parser.parse_args ()
@@ -57,6 +58,12 @@ if not args.ibgp and not args.ebgp:
 	print ("Error: You have to enable at least one of iBGP and eBGP checking.\n", file=sys.stderr)
 	parser.print_help ()
 	sys.exit (3)
+
+if args.session and args.ibgp and args.ebgp:
+	print ("Error: A single session can't be iBGP and eBGP at the same time!")
+	parser.print_help ()
+	sys.exit (3)
+
 
 session_down_codes = {
 	'w' : 1,
@@ -79,7 +86,12 @@ cmds = {
 	'6' : '/usr/sbin/birdc6',
 }
 
-cmd = [ "/usr/bin/sudo", cmds[args.proto], "show protocols all" ]
+# Check for one specific session only
+if args.session:
+	cmd = [ "/usr/bin/sudo", cmds[args.proto], "show protocol all %s" % args.session ]
+# Check for all sessions and filter later
+else:
+	cmd = [ "/usr/bin/sudo", cmds[args.proto], "show protocols all" ]
 
 try:
 	protocols = subprocess.Popen (cmd, bufsize = 4194304, stdout = subprocess.PIPE).stdout
@@ -231,6 +243,11 @@ down_by_proto = {
 	'ebgp' : []
 }
 
+proto_str = {
+	'ibgp' : 'iBGP',
+	'ebgp' : 'eBGP'
+}
+
 for protoname, config in sorted (bgp_sessions.items ()):
 	session_args = config.get ('Session', [])
 
@@ -243,16 +260,22 @@ for protoname, config in sorted (bgp_sessions.items ()):
 		print ("ERROR: Session %s is iBGP but does not have our ASN! The given local ASN seems wrong!" % protoname)
 		ret_code = 3
 
-	# Skip iBGP/eBGP sessions when not asked to check them
-	if (args.ibgp != True and (('internal' in session_args) or (config['Neighbor AS'] == args.asn))) or \
-	   (args.ebgp != True and (('external' in session_args) or (config['Neighbor AS'] != args.asn))):
-		continue
-
+	# Determine session type
 	session_type = "ibgp"
 	if ('external' in session_args) or (config['Neighbor AS'] != args.asn):
 		session_type = "ebgp"
 	remote_as = "I" if session_type == "ibgp" else config.get ('Neighbor AS')
 	session_desc = "%s/%s" % (protoname, remote_as)
+
+	# Skip iBGP/eBGP sessions when not asked to check them, but check for specific session, if given
+	if (args.ibgp != True and (('internal' in session_args) or (config['Neighbor AS'] == args.asn))) or \
+	   (args.ebgp != True and (('external' in session_args) or (config['Neighbor AS'] != args.asn))):
+		if not args.session:
+			continue
+
+		expected = "iBGP" if args.ibgp else "eBGP"
+		print ("ERROR: Session %s is %s but %s was expected!" % (args.session, proto_str[session_type], expected))
+		ret_code = 2
 
 	bgp_state = config['BGP state']
 	if bgp_state == 'Established':
@@ -290,6 +313,13 @@ for proto, sessions in down_by_proto.items ():
 			if ret_code < code:
 				ret_code = code
 
+
+# Special handling for session given by name
+if args.session:
+	# Check is given session name was found
+	if len (bgp_sessions) == 0:
+		print ("ERROR: Given session %s not present in configuration!" % args.session)
+		sys.exit (2)
 
 if len (down) > 0:
 	print ("DOWN: %s" % ", ".join (down))
