@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Check state of BGP sessions in Bird Internet Routing Daemon
 #
