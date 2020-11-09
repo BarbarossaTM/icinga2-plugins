@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import pprint
 
 
 def read_sessions_from_file (file_path, missing_ok):
@@ -50,7 +51,12 @@ parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of ses
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
 parser.add_argument ('--session', help = "Only check for session with given name.")
-
+parser.add_argument ('--imp_w', help = "Warning interval for Imported Routes", metavar = "RANGE")
+parser.add_argument ('--imp_c', help = "Critical interval for Imported Routes", metavar = "RANGE")
+parser.add_argument ('--exp_w', help = "Warning interval for Exported Routes", metavar = "RANGE")
+parser.add_argument ('--exp_c', help = "Critical interval for Exported Routes", metavar = "RANGE")
+parser.add_argument ('--pre_w', help = "Warning interval for Preferred Routes", metavar = "RANGE")
+parser.add_argument ('--pre_c', help = "Critical interval for Preferred Routes", metavar = "RANGE")
 
 args = parser.parse_args ()
 
@@ -66,8 +72,13 @@ if args.session and args.ibgp and args.ebgp:
 
 
 session_down_codes = {
-	'w' : 1,
-	'c' : 2,
+	'w' : [ 1, 'WARNING' ],
+	'c' : [ 2, 'CRITICAL'],
+}
+route_codes = {
+	"exp" : "Exported",
+	"imp" : "Imported",
+	"pre" : "Preferred",
 }
 
 # Are some sessions ok being down?
@@ -243,6 +254,11 @@ down_by_proto = {
 	'ebgp' : []
 }
 
+up_by_proto = {
+  'ibgp' : [],
+  'ebgp' : []
+}
+
 proto_str = {
 	'ibgp' : 'iBGP',
 	'ebgp' : 'eBGP'
@@ -280,6 +296,8 @@ for protoname, config in sorted (bgp_sessions.items ()):
 	bgp_state = config['BGP state']
 	if bgp_state == 'Established':
 		up.append (session_desc)
+		routes = config['Routes'].replace(' ', ',')
+		up_by_proto[session_type].append ("{0}/{1}".format(session_desc,routes))
 
 	# Session disable and we don't care
 	elif bgp_state == 'Down' and args.disabled_ok:
@@ -291,7 +309,7 @@ for protoname, config in sorted (bgp_sessions.items ()):
 
 	# Something's broken
 	else:
-		last_error = 'Disabled' if bgp_state == 'Down' else config.get ('Last error', 'unkown')
+		last_error = 'Disabled' if bgp_state == 'Down' else config.get ('Last error', 'unknown')
 		session_desc += " (%s)" % last_error
 
 		down.append (session_desc)
@@ -305,7 +323,7 @@ for proto, sessions in down_by_proto.items ():
 
 	for level in [ 'w', 'c' ]:
 		limits = getattr (args, "%s_%s" % (proto, level)).split (":")
-		code = session_down_codes[level]
+		code, code_name = session_down_codes[level]
 
 		# Check if
 		if (limits[0] == '' or down_sessions >= int (limits[0])) and \
@@ -313,6 +331,31 @@ for proto, sessions in down_by_proto.items ():
 			if ret_code < code:
 				ret_code = code
 
+# Check routes for up sessions
+for proto, sessions in up_by_proto.items():
+	up_sessions = len (sessions)
+	if up_sessions == 0:
+		continue
+	
+	for session_desc in sessions:
+		session, asn, routes = session_desc.split('/')
+		r_value = {'imp':0,'exp':0,'pre':0}
+		r_value['imp'], r_value['exp'], r_value['pre'] = routes.split(',')
+		#print("Imported {0}; Exported {1}; Preferred {2}".format(r_imported, r_exported, r_preferred))
+
+		for r_type in ["imp", "exp", "pre"]:
+			for level in [ 'w', 'c' ]:
+				try:
+					limits = getattr (args, "%s_%s" % (r_type, level)).split (":")
+				except:
+					pass
+				else:
+					code, code_name = session_down_codes[level]
+					if (limits[0] == '' or int(r_value[r_type]) >= int (limits[0])) and \
+						 (limits[1] == '' or int(r_value[r_type]) <= int (limits[1])):
+						if ret_code < code:
+							ret_code = code
+						print("{0} Routes: {1}/{2} with {3} route(s) is {4}".format(route_codes[r_type],session,asn,r_value[r_type],code_name))
 
 # Special handling for session given by name
 if args.session:
@@ -322,9 +365,9 @@ if args.session:
 		sys.exit (2)
 
 if len (down) > 0:
-	print ("DOWN: %s" % ", ".join (down))
+	print ("Session: %s is DOWN" % ", ".join (down))
 
 if len (up) > 0:
-	print ("OK: %s" % ", ".join (up))
+	print ("Session: %s is OK" % ", ".join (up))
 
 sys.exit (ret_code)
