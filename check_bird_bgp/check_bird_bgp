@@ -291,7 +291,7 @@ for protoname, config in sorted (bgp_sessions.items ()):
 
 	# Something's broken
 	else:
-		last_error = 'Disabled' if bgp_state == 'Down' else config.get ('Last error', 'unkown')
+		last_error = 'Disabled' if bgp_state == 'Down' else config.get ('Last error', 'unknown')
 		session_desc += " (%s)" % last_error
 
 		down.append (session_desc)
