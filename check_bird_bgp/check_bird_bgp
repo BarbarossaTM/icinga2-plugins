@@ -35,6 +35,10 @@ def read_sessions_from_file (file_path, missing_ok):
 	return sessions
 
 
+################################################################################
+#                  Argument parsing and basic input validation                 #
+################################################################################
+
 parser = argparse.ArgumentParser (description = 'check bird iBGP sessions')
 
 parser.add_argument ('--proto', '-p', help = 'IP protocol version to check', default = '4', choices = ['4', '6'])
@@ -64,6 +68,12 @@ if args.session and args.ibgp and args.ebgp:
 	parser.print_help ()
 	sys.exit (3)
 
+for limit in ('ibgp_w', 'ibgp_c' , 'ebgp_w' , 'ebgp_c'):
+	value = getattr (args, limit)
+	if len (value.split (':')) != 2:
+		print ("Error: Invalid limit definition for --%s: %s" % (limit, value))
+		parser.print_help ()
+		sys.exit (3)
 
 session_down_codes = {
 	'w' : 1,
@@ -298,6 +308,7 @@ for protoname, config in sorted (bgp_sessions.items ()):
 		down_by_proto[session_type].append (session_desc)
 
 
+# Check down iBGP / eBGP sessions limits
 for proto, sessions in down_by_proto.items ():
 	down_sessions = len (sessions)
 	if down_sessions == 0:
@@ -307,7 +318,7 @@ for proto, sessions in down_by_proto.items ():
 		limits = getattr (args, "%s_%s" % (proto, level)).split (":")
 		code = session_down_codes[level]
 
-		# Check if
+		# Check if number of down sessions is within warning or critical limits
 		if (limits[0] == '' or down_sessions >= int (limits[0])) and \
 		   (limits[1] == '' or down_sessions <= int (limits[1])):
 			if ret_code < code:
