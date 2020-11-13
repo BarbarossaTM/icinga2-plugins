@@ -253,11 +253,6 @@ down_by_proto = {
 	'ebgp' : []
 }
 
-up_by_proto = {
-  'ibgp' : [],
-  'ebgp' : []
-}
-
 proto_str = {
 	'ibgp' : 'iBGP',
 	'ebgp' : 'eBGP'
@@ -297,7 +292,6 @@ for protoname, config in sorted (bgp_sessions.items ()):
 	bgp_state = config['BGP state']
 	if bgp_state == 'Established':
 		up.append (session_desc)
-		up_by_proto[session_type].append (session_desc)
 		sessions_up[session_desc] = config['Routes']
 
 	# Session disable and we don't care
