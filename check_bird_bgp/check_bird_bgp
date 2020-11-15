@@ -53,7 +53,12 @@ parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of ses
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
 parser.add_argument ('--session', help = "Only check for session with given name.")
-
+parser.add_argument ('--routes_imported_w', help = "Warning interval for Imported Routes", metavar = "RANGE")
+parser.add_argument ('--routes_imported_c', help = "Critical interval for Imported Routes", metavar = "RANGE")
+parser.add_argument ('--routes_exported_w', help = "Warning interval for Exported Routes", metavar = "RANGE")
+parser.add_argument ('--routes_exported_c', help = "Critical interval for Exported Routes", metavar = "RANGE")
+parser.add_argument ('--routes_preferred_w', help = "Warning interval for Preferred Routes", metavar = "RANGE")
+parser.add_argument ('--routes_preferred_c', help = "Critical interval for Preferred Routes", metavar = "RANGE")
 
 args = parser.parse_args ()
 
@@ -75,8 +80,13 @@ for limit in ('ibgp_w', 'ibgp_c' , 'ebgp_w' , 'ebgp_c'):
 		sys.exit (3)
 
 session_down_codes = {
-	'w' : 1,
-	'c' : 2,
+	'w' : [ 1, 'WARNING' ],
+	'c' : [ 2, 'CRITICAL'],
+}
+route_codes = {
+	'routes_exported'  : 'Exported',
+	'routes_imported'  : 'Imported',
+	'routes_preferred' : 'Preferred',
 }
 
 # Are some sessions ok being down?
@@ -257,6 +267,8 @@ proto_str = {
 	'ebgp' : 'eBGP'
 }
 
+sessions_up = {}
+
 for protoname, config in sorted (bgp_sessions.items ()):
 	session_args = config.get ('Session', [])
 
@@ -289,6 +301,7 @@ for protoname, config in sorted (bgp_sessions.items ()):
 	bgp_state = config['BGP state']
 	if bgp_state == 'Established':
 		up.append (session_desc)
+		sessions_up[session_desc] = config['Routes']
 
 	# Session disable and we don't care
 	elif bgp_state == 'Down' and args.disabled_ok:
@@ -315,7 +328,7 @@ for proto, sessions in down_by_proto.items ():
 
 	for level in [ 'w', 'c' ]:
 		limits = getattr (args, "%s_%s" % (proto, level)).split (":")
-		code = session_down_codes[level]
+		code, code_name = session_down_codes[level]
 
 		# Check if number of down sessions is within warning or critical limits
 		if (limits[0] == '' or down_sessions >= int (limits[0])) and \
@@ -323,6 +336,25 @@ for proto, sessions in down_by_proto.items ():
 			if ret_code < code:
 				ret_code = code
 
+# Check routes for up sessions
+for session, routes in sessions_up.items ():
+		session_info = {}
+		session_info[ 'routes_imported' ], session_info[ 'routes_exported' ], session_info[ 'routes_preferred' ] = routes.split (' ')
+
+		for r_type in route_codes.keys():
+			for level in [ 'c', 'w' ]:
+				try:
+					limits = getattr (args, "%s_%s" % (r_type, level)).split (":")
+				except:
+					pass
+				else:
+					code, code_name = session_down_codes[level]
+					if (limits[0] == '' or int(session_info[r_type]) >= int (limits[0])) and \
+						 (limits[1] == '' or int(session_info[r_type]) <= int (limits[1])):
+						if ret_code < code:
+							ret_code = code
+						print("%s Routes: %s with %s route(s) is %s" % (route_codes[r_type],session,session_info[r_type],code_name))
+						break
 
 # Special handling for session given by name
 if args.session:
