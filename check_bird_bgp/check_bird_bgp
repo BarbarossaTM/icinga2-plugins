@@ -367,7 +367,7 @@ for proto, sessions in down_by_proto.items ():
 # Check routes for up sessions
 for session, routes in sessions_up.items ():
 		session_info = {}
-		session_info[ 'routes_imported' ], session_info[ 'routes_exported' ], session_info[ 'routes_preferred' ] = routes.split (' ')
+		session_info['routes_imported'], session_info['routes_exported'], session_info['routes_preferred'] = routes.split (' ')
 
 		for r_type in route_codes.keys():
 			for level in [ 'crit', 'warn' ]:
