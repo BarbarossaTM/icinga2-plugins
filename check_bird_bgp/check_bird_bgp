@@ -33,6 +33,32 @@ def read_sessions_from_file (file_path, missing_ok):
 
 	return sessions
 
+def validate_range_arg (arg_name):
+	value = getattr (args, arg_name)
+	if not value:
+		return None
+
+	# Check if a RANGE was given
+	limits = value.split (':')
+	if len (limits) != 2:
+		return "Error: Invalid value for --%s, expected RANGE: %s" % (arg_name, value)
+
+	# Try to validate range, on limit might be empty
+	try:
+		# Try to parse range values to integers if present
+		a = None
+		b = None
+		if (limits[0] != ''):
+			a = int (limits[0])
+		if (limits[1] != ''):
+			b = int (limits[1])
+
+		# Validate range if both values were given
+		if (a != None and b != None and a > b):
+			return "Error: Invalid value for --%s, invalid RANGE: %s" % (arg_name, value)
+	except ValueError:
+		return "Error: Expected numeric values in RANGE for --%s: %s" % (arg_name, value)
+
 
 ################################################################################
 #                  Argument parsing and basic input validation                 #
@@ -72,12 +98,14 @@ if args.session and args.ibgp and args.ebgp:
 	parser.print_help ()
 	sys.exit (3)
 
-for limit in ('ibgp_warn', 'ibgp_crit' , 'ebgp_warn' , 'ebgp_crit'):
-	value = getattr (args, limit)
-	if len (value.split (':')) != 2:
-		print ("Error: Invalid limit definition for --%s: %s" % (limit, value))
-		parser.print_help ()
-		sys.exit (3)
+# Validate limit arguments
+for item in ('ibgp', 'ebgp', 'routes_imported', 'routes_exported', 'routes_preferred'):
+	for severity in ('warn', 'crit'):
+		msg = validate_range_arg ("%s_%s" % (item, severity))
+		if msg:
+			print (msg)
+			sys.exit (3)
+
 
 session_down_codes = {
 	'warn' : [ 1, 'WARNING' ],
