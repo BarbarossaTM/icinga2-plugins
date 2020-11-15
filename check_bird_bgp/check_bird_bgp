@@ -53,12 +53,12 @@ parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of ses
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
 parser.add_argument ('--session', help = "Only check for session with given name.")
-parser.add_argument ('--routes_imported_w', help = "Warning interval for Imported Routes", metavar = "RANGE")
-parser.add_argument ('--routes_imported_c', help = "Critical interval for Imported Routes", metavar = "RANGE")
-parser.add_argument ('--routes_exported_w', help = "Warning interval for Exported Routes", metavar = "RANGE")
-parser.add_argument ('--routes_exported_c', help = "Critical interval for Exported Routes", metavar = "RANGE")
-parser.add_argument ('--routes_preferred_w', help = "Warning interval for Preferred Routes", metavar = "RANGE")
-parser.add_argument ('--routes_preferred_c', help = "Critical interval for Preferred Routes", metavar = "RANGE")
+parser.add_argument ('--routes_imported_warn', help = "Warning interval for imported routes", metavar = "RANGE")
+parser.add_argument ('--routes_imported_crit', help = "Critical interval for imported routes", metavar = "RANGE")
+parser.add_argument ('--routes_exported_warn', help = "Warning interval for exported routes", metavar = "RANGE")
+parser.add_argument ('--routes_exported_crit', help = "Critical interval for exported routes", metavar = "RANGE")
+parser.add_argument ('--routes_preferred_warn', help = "Warning interval for preferred routes", metavar = "RANGE")
+parser.add_argument ('--routes_preferred_crit', help = "Critical interval for preferred routes", metavar = "RANGE")
 
 args = parser.parse_args ()
 
@@ -80,8 +80,8 @@ for limit in ('ibgp_warn', 'ibgp_crit' , 'ebgp_warn' , 'ebgp_crit'):
 		sys.exit (3)
 
 session_down_codes = {
-	'w' : [ 1, 'WARNING' ],
-	'c' : [ 2, 'CRITICAL'],
+	'warn' : [ 1, 'WARNING' ],
+	'crit' : [ 2, 'CRITICAL'],
 }
 route_codes = {
 	'routes_exported'  : 'Exported',
@@ -326,7 +326,7 @@ for proto, sessions in down_by_proto.items ():
 	if down_sessions == 0:
 		continue
 
-	for level in [ 'w', 'c' ]:
+	for level in [ 'warn', 'crit' ]:
 		limits = getattr (args, "%s_%s" % (proto, level)).split (":")
 		code, code_name = session_down_codes[level]
 
@@ -342,7 +342,7 @@ for session, routes in sessions_up.items ():
 		session_info[ 'routes_imported' ], session_info[ 'routes_exported' ], session_info[ 'routes_preferred' ] = routes.split (' ')
 
 		for r_type in route_codes.keys():
-			for level in [ 'c', 'w' ]:
+			for level in [ 'crit', 'warn' ]:
 				try:
 					limits = getattr (args, "%s_%s" % (r_type, level)).split (":")
 				except:
