@@ -72,7 +72,7 @@ if args.session and args.ibgp and args.ebgp:
 	parser.print_help ()
 	sys.exit (3)
 
-for limit in ('ibgp_w', 'ibgp_c' , 'ebgp_w' , 'ebgp_c'):
+for limit in ('ibgp_warn', 'ibgp_crit' , 'ebgp_warn' , 'ebgp_crit'):
 	value = getattr (args, limit)
 	if len (value.split (':')) != 2:
 		print ("Error: Invalid limit definition for --%s: %s" % (limit, value))
