@@ -1,0 +1,126 @@
+#!/usr/bin/python3
+#
+# Maximilian Wilhelm <max@sdn.clinic>
+#  --  Sat, 20 Feb 2021 16:03:12 +0100
+#
+
+import argparse
+import base64
+import json
+import requests
+import sys
+
+
+################################################################################
+#                               Check methods                                  #
+################################################################################
+
+def check_storagepools ():
+	pools = {}
+
+	r = requests.get (url, auth = auth, verify = tls_cacert_dir)
+	res_json = r.json ()
+
+	ret_code = 0
+	msg = ""
+	perf_data = []
+
+	for np in res_json['nodepools']:
+		name = np['name']
+
+		# This pool isn't formed yet, nothing we can do
+		if name.startswith ('unprovisioned_pool'):
+			if args.ignore_unprovisioned:
+				continue
+
+			perf_data.append ("'%s'=%sB;%d;%d;0;%s" % (
+				name,
+				0,
+				0,
+				0,
+				0
+			))
+
+			continue
+
+
+		for storage_type in ('hdd', 'ssd'):
+			usage = int (np['usage']['used_%s_bytes' % storage_type])
+			warn = int (float (np['usage']['usable_%s_bytes' % storage_type]) * 0.75)
+			crit = int (float (np['usage']['usable_%s_bytes' % storage_type]) * 0.88)
+			size = np['usage']['usable_%s_bytes' % storage_type]
+
+			if size == "0":
+				continue
+
+			if usage > crit:
+				ret_code = 2
+				msg += " Pool %s is over 85%% full!" % name
+
+			elif usage > warn and ret_code < 2:
+				ret_code = 1
+				msg += " Pool %s is over 75%% full!" % name
+
+			perf_data.append ("'%s-%s'=%sB;%d;%d;0;%s" % (
+				name,
+				storage_type,
+				usage,
+				warn,
+				crit,
+				size
+			))
+
+	return (ret_code, msg, perf_data)
+
+
+################################################################################
+#                               Configuration                                  #
+################################################################################
+
+checks = {
+	'storagepools' : {
+		'api_path' : "/platform/3/storagepool/nodepools",
+		'function' : check_storagepools,
+	},
+}
+
+tls_cacert_dir = "/etc/ssl/certs"
+
+################################################################################
+#                         Parse command line argument                          #
+################################################################################
+
+parser = argparse.ArgumentParser ()
+
+subparsers = parser.add_subparsers (dest = 'check', required = True, description = "Choose one item to check", title = "Checks")
+
+# Check storage pools
+parser_stpl = subparsers.add_parser ('storagepools', help = 'Check storagepools')
+parser_stpl.add_argument ('--ignore-unprovisioned', action = 'store_true', help = "Ignore unprovisioned pools instead reporting them with 0 values.")
+
+# Arguments for all checks
+parser.add_argument ('fqdn',     help = "FQDN of Isilon PAPI endpoint")
+parser.add_argument ('username', help = "Username for PAPI login")
+parser.add_argument ('password', help = "Password for PAPI login")
+
+
+args = parser.parse_args ()
+
+
+# Format URL and prepare auth data
+url = "https://%s:8080/%s" % (args.fqdn, checks[args.check]['api_path'].lstrip ('/'))
+auth = (args.username, args.password)
+
+
+# Run check
+(ret_code, msg, perf_data) = checks[args.check]['function']()
+
+if ret_code == 0:
+	msg = "Pools OK"
+elif ret_code == 1:
+	msg = "Warning:" + msg
+elif ret_code == 2:
+	msg = "ATTENTION:" + msg
+
+print ("%s | %s" % (msg, " ".join (sorted (perf_data))))
+sys.exit (ret_code)
