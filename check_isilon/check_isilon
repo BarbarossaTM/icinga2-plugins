@@ -9,6 +9,7 @@ import base64
 import json
 import requests
 import sys
+import time
 
 
 # Exit code definitions
@@ -32,6 +33,13 @@ def query_api ():
 	res_json = r.json ()
 
 	return res_json
+
+def convert_time (epoch):
+	try:
+		t = time.localtime (int (epoch))
+		return time.strftime ("%a %d.%m.%Y %H:%M:%S", t)
+	except ValueError:
+		return "unknown"
 
 
 def check_storagepools ():
@@ -92,6 +100,53 @@ def check_storagepools ():
 	return (ret_code, msg, perf_data)
 
 
+def check_synciq ():
+	data = query_api ()
+
+	ret_code = OK
+	msg = ""
+	perf_data = []
+	errors = ""
+
+	policies = 0
+
+	for policy in data['policies']:
+		if policy['enabled'] == 'false':
+			continue
+
+		policies += 1
+
+		# Gather some relevant attributes
+		last_job_state = policy['last_job_state']
+		last_started = convert_time (policy['last_started'])
+		last_success = convert_time (policy['last_success'])
+		next_run = convert_time (policy['next_run'])
+
+		# Append to msg or errors depending on state
+		newmsg = "Policy %s %s, policy was last started %s, last successful run was %s, next run is scheduled for %s\n" % (
+			policy['name'],
+			last_job_state,
+			last_started,
+			last_success,
+			next_run)
+
+		if last_job_state in ("failed"):
+			ret_code = CRITICAL
+			last_job_state = last_job_state.upper ()
+			errors += newmsg
+		else:
+			msg += newmsg
+
+
+	# No enabled policy configured at all?
+	if policies == 0 and ret_code < 1:
+		ret_code = 1
+		msg = "No enabled policy configured, is this what you want?"
+
+	msg = errors + msg
+
+	return (ret_code, msg, perf_data)
+
 ################################################################################
 #                               Configuration                                  #
 ################################################################################
@@ -100,6 +155,11 @@ checks = {
 	'storagepools' : {
 		'api_path' : "/platform/3/storagepool/nodepools",
 		'function' : check_storagepools,
+	},
+
+	'synciq' : {
+		'api_path' : '/platform/7/sync/policies',
+		'function' : check_synciq,
 	},
 }
 
