@@ -11,17 +11,33 @@ import requests
 import sys
 
 
+# Exit code definitions
+OK = 0
+WARNING = 1
+CRITICAL = 2
+UNKNOWN = 3
+
+
 ################################################################################
-#                               Check methods                                  #
+#                         Helper and check methods                             #
 ################################################################################
 
-def check_storagepools ():
-	pools = {}
-
+def query_api ():
 	r = requests.get (url, auth = auth, verify = tls_cacert_dir)
+
+	if r.status_code != 200:
+		print ("UNKN: Query to %s failed: %s" % (url, "error"))
+		sys.exit (UNKNOWN)
+
 	res_json = r.json ()
 
-	ret_code = 0
+	return res_json
+
+
+def check_storagepools ():
+	res_json = query_api ()
+
+	ret_code = OK
 	msg = ""
 	perf_data = []
 
@@ -54,11 +70,11 @@ def check_storagepools ():
 				continue
 
 			if usage > crit:
-				ret_code = 2
+				ret_code = CRITICAL
 				msg += " Pool %s is over 85%% full!" % name
 
-			elif usage > warn and ret_code < 2:
-				ret_code = 1
+			elif usage > warn and ret_code < CRITICAL:
+				ret_code = WARNING
 				msg += " Pool %s is over 75%% full!" % name
 
 			perf_data.append ("'%s-%s'=%sB;%d;%d;0;%s" % (
@@ -69,6 +85,9 @@ def check_storagepools ():
 				crit,
 				size
 			))
+
+	if ret_code == OK:
+		msg = "Pools OK"
 
 	return (ret_code, msg, perf_data)
 
@@ -98,11 +117,13 @@ subparsers = parser.add_subparsers (dest = 'check', required = True, description
 parser_stpl = subparsers.add_parser ('storagepools', help = 'Check storagepools')
 parser_stpl.add_argument ('--ignore-unprovisioned', action = 'store_true', help = "Ignore unprovisioned pools instead reporting them with 0 values.")
 
+# Check SyncIQ status
+parser_siq = subparsers.add_parser ('synciq', help = 'Check SyncIQ')
+
 # Arguments for all checks
 parser.add_argument ('fqdn',     help = "FQDN of Isilon PAPI endpoint")
 parser.add_argument ('username', help = "Username for PAPI login")
 parser.add_argument ('password', help = "Password for PAPI login")
-
 
 args = parser.parse_args ()
 
@@ -113,14 +134,15 @@ auth = (args.username, args.password)
 
 
 # Run check
-(ret_code, msg, perf_data) = checks[args.check]['function']()
+(ret_code, msg, perf_data) = checks[args.check]['function'] ()
 
-if ret_code == 0:
-	msg = "Pools OK"
-elif ret_code == 1:
+if ret_code == 1:
 	msg = "Warning:" + msg
 elif ret_code == 2:
 	msg = "ATTENTION:" + msg
 
-print ("%s | %s" % (msg, " ".join (sorted (perf_data))))
+if perf_data:
+	msg += "| " + " ".join (sorted (perf_data))
+
+print (msg)
 sys.exit (ret_code)
