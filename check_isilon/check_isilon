@@ -43,6 +43,35 @@ def convert_time (epoch):
 		return "unknown"
 
 
+def check_events (data):
+	ret_code = OK
+	msg = ""
+	perf_data = []
+
+	for evl in data['eventlists']:
+		event = evl['events'][0]
+
+		# Event has been resolved, go on
+		if event['resolve_time'] != 0:
+			continue
+
+		# Format message like "(Critical|Warning) on (Node NN|Cluster): $msg"
+		sev = event['severity']
+		scope = "node %s" % event['lnn'] if event['lnn'] != 0 else "cluster"
+		msg += "%s on %s: %s\n" % (sev.capitalize (), scope, event['message'])
+
+		# Store worst severity
+		if sev == 'warning' and ret_code < WARNING:
+			ret_code = WARNING
+		elif sev == 'critical' and ret_code < CRITICAL:
+			ret_code = CRITICAL
+
+	if ret_code == OK:
+		msg = "No active events"
+
+	return (ret_code, msg, perf_data)
+
+
 def check_storagepools (data):
 	ret_code = OK
 	msg = ""
@@ -149,6 +178,11 @@ def check_synciq (data):
 ################################################################################
 
 checks = {
+	'events' : {
+		'api_path' : "/platform/7/event/eventlists",
+		'function' : check_events,
+	},
+
 	'storagepools' : {
 		'api_path' : "/platform/3/storagepool/nodepools",
 		'function' : check_storagepools,
@@ -169,6 +203,9 @@ tls_cacert_dir = "/etc/ssl/certs"
 parser = argparse.ArgumentParser ()
 
 subparsers = parser.add_subparsers (dest = 'check', required = True, description = "Choose one item to check", title = "Checks")
+
+# Check for events/alerts
+parser_events = subparsers.add_parser ('events', help = 'Check events')
 
 # Check storage pools
 parser_stpl = subparsers.add_parser ('storagepools', help = 'Check storagepools')
