@@ -25,7 +25,7 @@ def query_api (url, auth):
 	r = requests.get (url, auth = auth, verify = tls_cacert_dir)
 
 	if r.status_code != 200:
-		print ("Unknown: Query to %s failed: %s" % (url, "error"))
+		print ("Query to %s failed: %s" % (url, "error"))
 		sys.exit (UNKNOWN)
 
 	res_json = r.json ()
@@ -65,7 +65,7 @@ def check_events (data):
 			ret_code = CRITICAL
 
 	if ret_code == OK:
-		msg = "OK: No active events"
+		msg = "No active events"
 
 	return (ret_code, msg, perf_data)
 
@@ -121,7 +121,7 @@ def check_storagepools (data):
 			))
 
 	if ret_code == OK:
-		msg = "OK: Pools OK"
+		msg = "Pools OK"
 
 	return (ret_code, msg, perf_data)
 
@@ -165,7 +165,7 @@ def check_synciq (data):
 	# No enabled policy configured at all?
 	if policies == 0 and ret_code < 1:
 		ret_code = 1
-		msg = "Warning: No enabled policy configured, is this what you want?"
+		msg = "No enabled policy configured, is this what you want?"
 
 	msg = errors + msg
 
@@ -228,10 +228,14 @@ data = query_api (url, auth)
 # Run check
 (ret_code, msg, perf_data) = checks[args.check]['function'] (data)
 
-if ret_code == 1:
-	msg = "Warning:" + msg
-elif ret_code == 2:
-	msg = "Critical:" + msg
+if ret_code == OK:
+	msg = "OK: " + msg
+if ret_code == WARNING:
+	msg = "Warning: " + msg
+if ret_code == CRITICAL:
+	msg = "Critical: " + msg
+if ret_code == UNKNOWN:
+	msg = "Unknown: " + msg
 
 if perf_data:
 	msg += "| " + " ".join (sorted (perf_data))
