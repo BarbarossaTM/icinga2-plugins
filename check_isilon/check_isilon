@@ -25,7 +25,7 @@ def query_api (url, auth):
 	r = requests.get (url, auth = auth, verify = tls_cacert_dir)
 
 	if r.status_code != 200:
-		print ("Query to %s failed: %s" % (url, "error"))
+		print ("UNKNOWN: Query to %s failed: %s" % (url, "error"))
 		sys.exit (UNKNOWN)
 
 	res_json = r.json ()
