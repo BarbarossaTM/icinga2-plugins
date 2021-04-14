@@ -23,7 +23,7 @@ UNKNOWN = 3
 #                         Helper and check methods                             #
 ################################################################################
 
-def query_api ():
+def query_api (url, auth):
 	r = requests.get (url, auth = auth, verify = tls_cacert_dir)
 
 	if r.status_code != 200:
@@ -34,6 +34,7 @@ def query_api ():
 
 	return res_json
 
+
 def convert_time (epoch):
 	try:
 		t = time.localtime (int (epoch))
@@ -42,14 +43,12 @@ def convert_time (epoch):
 		return "unknown"
 
 
-def check_storagepools ():
-	res_json = query_api ()
-
+def check_storagepools (data):
 	ret_code = OK
 	msg = ""
 	perf_data = []
 
-	for np in res_json['nodepools']:
+	for np in data['nodepools']:
 		name = np['name']
 
 		# This pool isn't formed yet, nothing we can do
@@ -100,9 +99,7 @@ def check_storagepools ():
 	return (ret_code, msg, perf_data)
 
 
-def check_synciq ():
-	data = query_api ()
-
+def check_synciq (data):
 	ret_code = OK
 	msg = ""
 	perf_data = []
@@ -191,10 +188,10 @@ args = parser.parse_args ()
 # Format URL and prepare auth data
 url = "https://%s:8080/%s" % (args.fqdn, checks[args.check]['api_path'].lstrip ('/'))
 auth = (args.username, args.password)
-
+data = query_api (url, auth)
 
 # Run check
-(ret_code, msg, perf_data) = checks[args.check]['function'] ()
+(ret_code, msg, perf_data) = checks[args.check]['function'] (data)
 
 if ret_code == 1:
 	msg = "Warning:" + msg
@@ -204,5 +201,5 @@ elif ret_code == 2:
 if perf_data:
 	msg += "| " + " ".join (sorted (perf_data))
 
-print (msg)
+print (msg.rstrip ())
 sys.exit (ret_code)
