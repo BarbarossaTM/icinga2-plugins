@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Check state of BGP sessions in Bird 1.x Internet Routing Daemon
+# Check state of BGP sessions in Bird 2.x Internet Routing Daemon
 #
 # Maximilian Wilhelm <max@rfc2324.org>
 #  --  Thu 13 Apr 2017 12:04:13 PM CEST
