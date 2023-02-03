@@ -66,7 +66,6 @@ def validate_range_arg (arg_name):
 
 parser = argparse.ArgumentParser (description = 'check bird iBGP sessions')
 
-parser.add_argument ('--proto', '-p', help = 'IP protocol version to check', default = '4', choices = ['4', '6'])
 parser.add_argument ('--asn', '-A', help = "Local AS number", required = True)
 parser.add_argument ('--ibgp', '-i', help = "Check iBGP sessions", action = 'store_true')
 parser.add_argument ('--ibgp_warn', '--ibgp_w', help = "Warning interval for down iBGP sessions", default = "1:1", metavar = "RANGE")
@@ -128,17 +127,13 @@ if args.sessions_down_ok_file:
 ################################################################################
 #                         Query BGP protocols from bird                        #
 ################################################################################
-cmds = {
-	'4' : '/usr/sbin/birdc',
-	'6' : '/usr/sbin/birdc6',
-}
 
 # Check for one specific session only
 if args.session:
-	cmd = [ "/usr/bin/sudo", cmds[args.proto], "show protocol all %s" % args.session ]
+	cmd = [ "/usr/bin/sudo", '/usr/sbin/birdc', "show protocol all %s" % args.session ]
 # Check for all sessions and filter later
 else:
-	cmd = [ "/usr/bin/sudo", cmds[args.proto], "show protocols all" ]
+	cmd = [ "/usr/bin/sudo", '/usr/sbin/birdc', "show protocols all" ]
 
 try:
 	protocols = subprocess.Popen (cmd, bufsize = 4194304, stdout = subprocess.PIPE).stdout
