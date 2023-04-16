@@ -79,7 +79,7 @@ parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of ses
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
 parser.add_argument ('--session', help = "Only check for session with given name.")
-parser.add_argument ('--show_performance_data', dest='show_performance_data', action='store_const', const=1, default=0, help='Whether to show performance data or not')
+parser.add_argument ('--show_performance_data', help='Whether to show performance data or not', action='store_true')
 parser.add_argument ('--routes_imported_warn', help = "Warning interval for imported routes", metavar = "RANGE")
 parser.add_argument ('--routes_imported_crit', help = "Critical interval for imported routes", metavar = "RANGE")
 parser.add_argument ('--routes_exported_warn', help = "Warning interval for exported routes", metavar = "RANGE")
@@ -374,8 +374,8 @@ for session, routes in sessions_up.items ():
 		session_info = {}
 		session_info['routes_imported'], session_info['routes_exported'], session_info['routes_preferred'] = routes.split (' ')
 
-		total_routes_imported = total_routes_imported + int(session_info['routes_imported'])
-		total_routes_exported = total_routes_exported + int(session_info['routes_exported'])
+		total_routes_imported += int(session_info['routes_imported'])
+		total_routes_exported += int(session_info['routes_exported'])
 
 		for r_type in route_codes.keys():
 			for level in [ 'crit', 'warn' ]:

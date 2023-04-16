@@ -2,8 +2,9 @@
 #
 # Check state of BGP sessions in Bird 2.x Internet Routing Daemon
 #
-# Maximilian Wilhelm <max@rfc2324.org>
-#  --  Thu 13 Apr 2017 12:04:13 PM CEST
+# Based on check_bird_bgp from Maximilian Wilhelm <max@sdn.clinic>
+#
+# (C) 2023 by Mario Rimann <mario.rimann@internezzo.ch>
 #
 
 import argparse
@@ -78,6 +79,7 @@ parser.add_argument ('--sessions_down_ok', metavar = "LIST", help = "List of ses
 parser.add_argument ('--sessions_down_ok_file', metavar = "FILENAME", help = "List of sessions which are OK to be down. Provide one interfaces per line.")
 parser.add_argument ('--ignore_missing_file', help = "Ignore a possible non-existent file given as --interfaces_down_ok_file", action = 'store_true')
 parser.add_argument ('--session', help = "Only check for session with given name.")
+parser.add_argument ('--show_performance_data', help='Whether to show performance data or not', action='store_true')
 parser.add_argument ('--routes_imported_warn', help = "Warning interval for imported routes", metavar = "RANGE")
 parser.add_argument ('--routes_imported_crit', help = "Critical interval for imported routes", metavar = "RANGE")
 parser.add_argument ('--routes_exported_warn', help = "Warning interval for exported routes", metavar = "RANGE")
@@ -280,6 +282,10 @@ up = []
 down = []
 ret_code = 0
 
+# for performance data
+total_routes_imported = 0
+total_routes_exported = 0
+
 down_by_proto = {
 	'ibgp' : [],
 	'ebgp' : []
@@ -364,6 +370,9 @@ for session, routes in sessions_up.items ():
 		session_info = {}
 		session_info['routes_imported'], session_info['routes_exported'], session_info['routes_preferred'] = routes.split (' ')
 
+		total_routes_imported += int(session_info['routes_imported'])
+		total_routes_exported += int(session_info['routes_exported'])
+
 		for r_type in route_codes.keys():
 			for level in [ 'crit', 'warn' ]:
 				try:
@@ -391,5 +400,8 @@ if len (down) > 0:
 
 if len (up) > 0:
 	print ("OK: %s" % ", ".join (up))
+
+if args.show_performance_data:
+       print('| num_sessions:%i total_routes_imported:%i total_routes_exported:%i' % (len(bgp_sessions), total_routes_imported, total_routes_exported))
 
 sys.exit (ret_code)
