@@ -402,6 +402,6 @@ if len (up) > 0:
 	print ("OK: %s" % ", ".join (up))
 
 if args.show_performance_data:
-	print('| num_sessions=%i total_routes_imported=%i total_routes_exported=%i'%(len(bgp_sessions),total_routes_imported,total_routes_exported))
+	print('| num_sessions=%i total_routes_imported=%i total_routes_exported=%i' % (len(bgp_sessions), total_routes_imported, total_routes_exported))
 
 sys.exit (ret_code)
